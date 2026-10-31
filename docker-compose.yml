@@ -1,0 +1,53 @@
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: bigdata
+      POSTGRES_USER: student
+      POSTGRES_PASSWORD: student123
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - "./исходные данные:/data:ro"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U student -d bigdata"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  spark:
+    image: apache/spark:3.5.5-python3
+    entrypoint: ["/bin/bash", "-lc"]
+    command: ["sleep infinity"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_started
+    volumes:
+      - "./исходные данные:/opt/spark/data:ro"
+      - "./jobs:/opt/spark/work-dir/jobs"
+    environment:
+      SPARK_LOCAL_DIRS: /tmp/spark
+    restart: unless-stopped
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.3
+    environment:
+      CLICKHOUSE_DB: bigdata
+      CLICKHOUSE_USER: student
+      CLICKHOUSE_PASSWORD: student123
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "8124:8123"
+      - "9001:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  clickhouse_data:
