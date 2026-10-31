@@ -4,7 +4,8 @@
 
 - `исходные данные/` — 10 CSV-файлов, суммарно 10 000 строк.
 - `docker-compose.yml` — PostgreSQL 16, Apache Spark 3.5.5, ClickHouse 25.3.
-- `load_mock_data.ps1` — загрузка CSV в PostgreSQL (`public.mock_data`).
+- `initdb/01_load_mock_data.sql` — автоматическая загрузка 10 CSV при первом создании тома PostgreSQL.
+- `load_mock_data.ps1` — ручная повторная загрузка CSV в PostgreSQL (`public.mock_data`).
 - `jobs/postgresql-42.7.14.jar` — JDBC-драйвер PostgreSQL (необходимо скачать).
 - `jobs/01_build_star.py` — Spark ETL: исходные строки → модель звезды в PostgreSQL.
 - `jobs/02_build_clickhouse.py` — Spark ETL: модель звезды → 6 отчётов в ClickHouse.
@@ -21,13 +22,21 @@ docker compose ps
 
 Убедитесь, что `postgres`, `spark` и `clickhouse` запущены; `postgres` — `healthy`.
 
-### 2. Подготовка PostgreSQL
+### 2. Проверка начальной загрузки PostgreSQL
+
+При **первом** `docker compose up -d` в пустом томе PostgreSQL SQL-скрипт `initdb/01_load_mock_data.sql` автоматически создаёт `public.mock_data` и загружает 10 CSV (10 000 строк). Для проверки:
+
+```powershell
+docker compose exec -T postgres psql -U student -d bigdata -c "SELECT COUNT(*) AS total_rows FROM public.mock_data;"
+```
+
+Если PostgreSQL уже запускался и его том сохранён, init-скрипт **не выполняется повторно**: ранее загруженные данные остаются на месте. Для ручной повторной загрузки в существующую БД выполните:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\load_mock_data.ps1
 ```
 
-В `mock_data` должно быть 10 000 строк. *Этот скрипт очищает и заново наполняет только `mock_data`.*
+Ручной PowerShell-скрипт очищает и заново наполняет только `mock_data`; для первого запуска на чистой машине он не нужен.
 
 ### 3. JDBC-драйвер для Spark
 
